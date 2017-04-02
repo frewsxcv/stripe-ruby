@@ -89,4 +89,17 @@ module Stripe
   # back off on request rate.
   class RateLimitError < StripeError
   end
+
+  # OAuthError is raised when the OAuth API returns an error.
+  class OAuthError < StripeError
+    attr_accessor :type
+
+    def initialize(type, description, http_status: nil, http_body: nil, json_body: nil,
+                   http_headers: nil)
+      description ||= type
+      super(description, http_status: http_status, http_body: http_body,
+        json_body: json_body, http_headers: http_headers)
+      @type = type
+    end
+  end
 end

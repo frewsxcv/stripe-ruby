@@ -197,7 +197,7 @@ module Stripe
         case e
         when Faraday::ClientError
           if e.response
-            handle_api_error(e.response)
+            handle_error_response(e.response)
           else
             handle_network_error(e, retry_count, api_base)
           end
@@ -229,12 +229,12 @@ module Stripe
       str
     end
 
-    def handle_api_error(http_resp)
+    def handle_error_response(http_resp)
       begin
         resp = StripeResponse.from_faraday_hash(http_resp)
         error = resp.data[:error]
 
-        unless error && error.is_a?(Hash)
+        unless error
           raise StripeError.new("Indeterminate error")
         end
 
@@ -242,6 +242,23 @@ module Stripe
         raise general_api_error(http_resp[:status], http_resp[:body])
       end
 
+      if error.is_a?(Hash)
+        error = specific_api_error(resp, error)
+      elsif error.is_a?(String)
+        error = oauth_error(resp, error)
+      else
+        error = StripeError.new(
+          "Indeterminate error",
+          http_status: resp.http_status, http_body: resp.http_body,
+          json_body: resp.data, http_headers: resp.http_headers
+        )
+      end
+
+      error.response = resp
+      raise(error)
+    end
+
+    def specific_api_error(resp, error)
       case resp.http_status
       when 400, 404
         error = InvalidRequestError.new(
@@ -281,8 +298,25 @@ module Stripe
         )
       end
 
-      error.response = resp
-      raise(error)
+      error
+    end
+
+    def oauth_error(resp, error)
+      description = resp.data[:error_description] || error
+
+      if error == 'invalid_request'
+        error = InvalidRequestError.new(
+          description, nil,
+          http_status: resp.http_status, http_body: resp.http_body,
+          json_body: resp.data, http_headers: resp.http_headers
+        )
+      else
+        error = OAuthError.new(
+          error, description,
+          http_status: resp.http_status, http_body: resp.http_body,
+          json_body: resp.data, http_headers: resp.http_headers
+        )
+      end
     end
 
     def handle_network_error(e, retry_count, api_base=nil)

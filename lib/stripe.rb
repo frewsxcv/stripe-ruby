@@ -67,6 +67,9 @@ require 'stripe/three_d_secure'
 require 'stripe/token'
 require 'stripe/transfer'
 
+# OAuth
+require 'stripe/oauth'
+
 module Stripe
   DEFAULT_CA_BUNDLE_PATH = File.dirname(__FILE__) + '/data/ca-certificates.crt'
 
@@ -88,7 +91,7 @@ module Stripe
   @read_timeout = 80
 
   class << self
-    attr_accessor :stripe_account, :api_key, :api_base, :verify_ssl_certs, :api_version, :connect_base, :uploads_base,
+    attr_accessor :stripe_account, :api_key, :api_base, :verify_ssl_certs, :api_version, :client_id, :connect_base, :uploads_base,
                   :open_timeout, :read_timeout
 
     attr_reader :max_network_retry_delay, :initial_network_retry_delay
